@@ -1,6 +1,6 @@
 name: Android-Linux
 
-on: 
+on:
   push:
     branches:
       - master
