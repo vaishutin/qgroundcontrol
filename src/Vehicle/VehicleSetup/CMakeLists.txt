@@ -34,6 +34,7 @@ qt_add_qml_module(VehicleSetupModule
         JoystickConfigCalibration.qml
         JoystickConfigGeneral.qml
         OpticalFlowSensor.qml
+        SanyaMapper.qml
         SetupParameterEditor.qml
         SetupView.qml
         VehicleSummary.qml
