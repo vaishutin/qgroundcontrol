@@ -97,13 +97,6 @@ Rectangle {
         }
     }
 
-    function showSanyaMapperPanel() {
-        if (mainWindow.allowViewSwitch()) {
-            sanyaMapperButton.checked = true
-            panelLoader.setSource("qrc:/qml/QGroundControl/VehicleSetup/SanyaMapper.qml")
-        }
-    }
-
     Component.onCompleted: _showSummaryPanel()
 
     Connections {
@@ -227,13 +220,6 @@ Rectangle {
                 Layout.fillWidth:   true
 
                 onClicked: showSummaryPanel()
-            }
-
-            ConfigButton {
-                id:                 sanyaMapperButton
-                text:               qsTr("Sanya mapper")
-                Layout.fillWidth:   true
-                onClicked:          showSanyaMapperPanel()
             }
 
             ConfigButton {
