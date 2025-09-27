@@ -68,7 +68,7 @@ SetupPage {
                         if (_activeJoystick.axisCount == 0) {
                             currentIndex = _allowJoystickSelection ? 0 : 1
                         } else {
-                            currentIndex = _activeJoystick.calibrated ? 0 : 2
+                            currentIndex = _activeJoystick.calibrated ? 0 : 3
                         }
                     } else {
                         currentIndex = 0
@@ -83,6 +83,10 @@ SetupPage {
                     text:       qsTr("Button Assigment")
                 }
                 QGCTabButton {
+                    text:       qsTr("Mapping")
+                    visible:    _activeJoystick
+                }
+                QGCTabButton {
                     text:       qsTr("Calibration")
                     visible:    _activeJoystick.axisCount != 0
                 }
@@ -92,7 +96,13 @@ SetupPage {
                 }
             }
 
-            property var pages:  ["qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigGeneral.qml", "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigButtons.qml", "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigCalibration.qml", "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigAdvanced.qml"]
+            property var pages:  [
+                "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigGeneral.qml",
+                "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigButtons.qml",
+                "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigMapping.qml",
+                "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigCalibration.qml",
+                "qrc:/qml/QGroundControl/VehicleSetup/JoystickConfigAdvanced.qml"
+            ]
 
             Loader {
                 id:             joyLoader
@@ -103,5 +113,4 @@ SetupPage {
         }
     }
 }
-
 

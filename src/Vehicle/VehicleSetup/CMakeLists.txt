@@ -33,6 +33,7 @@ qt_add_qml_module(VehicleSetupModule
         JoystickConfigButtons.qml
         JoystickConfigCalibration.qml
         JoystickConfigGeneral.qml
+        JoystickConfigMapping.qml
         OpticalFlowSensor.qml
         SetupParameterEditor.qml
         SetupView.qml
