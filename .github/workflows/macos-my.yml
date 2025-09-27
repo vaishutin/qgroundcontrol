@@ -92,6 +92,13 @@ jobs:
         working-directory: ${{ runner.temp }}/build/Release/QGroundControl.app/Contents/MacOS
         run: ./QGroundControl --simple-boot-test
 
+      - name: Deploy app bundle
+        working-directory: ${{ runner.temp }}/build
+        env:
+          QGC_MACOS_SIGN_WITH_IDENTITY: OFF    # чтобы не пыталось подписывать
+        run: cmake --install . --config ${{ matrix.BuildType }}
+
+
       # - name: Import Code Signing Certificate
       #   if: github.event_name != 'pull_request'
       #   uses: apple-actions/import-codesign-certs@v5
