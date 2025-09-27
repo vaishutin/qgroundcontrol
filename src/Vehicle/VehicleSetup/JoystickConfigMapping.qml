@@ -16,7 +16,8 @@ import QGroundControl
 import QGroundControl.Controls
 
 ColumnLayout {
-    width:      availableWidth
+    anchors.fill: parent
+    anchors.margins: ScreenTools.defaultFontPixelWidth
     spacing:    ScreenTools.defaultFontPixelHeight
 
     readonly property int __buttonLimit: _maxButtons
@@ -56,6 +57,7 @@ ColumnLayout {
         Layout.fillWidth:   true
         Layout.fillHeight:  true
         visible:            _activeJoystick
+        clip:               true
 
         ColumnLayout {
             width:      parent.width
@@ -101,6 +103,14 @@ ColumnLayout {
                             value:              axisPercent
                         }
 
+                        QGCComboBox {
+                            Layout.preferredWidth: ScreenTools.defaultFontPixelWidth * 18
+                            model:                      controller.rcChannelOptions
+                            currentIndex:               controller.axisChannelSelection.length > modelData ? controller.axisChannelSelection[modelData] : 0
+                            enabled:                    model.length > 0
+                            onActivated: (comboIndex) => controller.setAxisChannel(modelData, comboIndex)
+                        }
+
                         QGCLabel {
                             Layout.preferredWidth: ScreenTools.defaultFontPixelWidth * 6
                             horizontalAlignment:    Text.AlignRight
@@ -141,6 +151,14 @@ ColumnLayout {
                             from:               0
                             to:                 100
                             value:              buttonPercent
+                        }
+
+                        QGCComboBox {
+                            Layout.preferredWidth: ScreenTools.defaultFontPixelWidth * 18
+                            model:                      controller.rcChannelOptions
+                            currentIndex:               controller.buttonChannelSelection.length > modelData ? controller.buttonChannelSelection[modelData] : 0
+                            enabled:                    model.length > 0
+                            onActivated: (comboIndex) => controller.setButtonChannel(modelData, comboIndex)
                         }
 
                         QGCLabel {

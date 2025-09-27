@@ -28,7 +28,7 @@ jobs:
 
     strategy:
       matrix:
-        BuildType: [Release]
+        BuildType: [Debug]
 
     defaults:
       run:
@@ -92,12 +92,6 @@ jobs:
         working-directory: ${{ runner.temp }}/build/Release/QGroundControl.app/Contents/MacOS
         run: ./QGroundControl --simple-boot-test
 
-      - name: Deploy app bundle
-        working-directory: ${{ runner.temp }}/build
-        env:
-          QGC_MACOS_SIGN_WITH_IDENTITY: OFF    # чтобы не пыталось подписывать
-        run: cmake --install . --config ${{ matrix.BuildType }}
-
 
       # - name: Import Code Signing Certificate
       #   if: github.event_name != 'pull_request'
@@ -128,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: QGroundControl-macos-app
-          path: ${{ runner.temp }}/build/Release/QGroundControl.app
+          path: ${{ runner.temp }}/build/Debug/QGroundControl.app
 
       # - name: Upload Build File
       #   if: matrix.BuildType == 'Release'

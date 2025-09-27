@@ -15,10 +15,14 @@
 
 #include <QtCore/QElapsedTimer>
 #include <QtCore/QLoggingCategory>
+#include <QtCore/QStringList>
+#include <QtCore/QVariantList>
+#include <QtCore/QVector>
 #include <QtQmlIntegration/QtQmlIntegration>
 
 #include "FactPanelController.h"
 #include "Joystick.h"
+#include "QGCMAVLink.h"
 
 Q_DECLARE_LOGGING_CATEGORY(JoystickConfigControllerLog)
 
@@ -52,6 +56,9 @@ public:
     Q_PROPERTY(bool skipEnabled                 READ skipEnabled                NOTIFY skipEnabledChanged)
 
     Q_PROPERTY(QList<qreal> stickPositions      READ stickPositions             NOTIFY stickPositionsChanged)
+    Q_PROPERTY(QStringList rcChannelOptions     READ rcChannelOptions           NOTIFY rcChannelOptionsChanged)
+    Q_PROPERTY(QVariantList axisChannelSelection READ axisChannelSelection      NOTIFY axisChannelSelectionChanged)
+    Q_PROPERTY(QVariantList buttonChannelSelection READ buttonChannelSelection  NOTIFY buttonChannelSelectionChanged)
 
     Q_INVOKABLE void cancelButtonClicked    ();
     Q_INVOKABLE void skipButtonClicked      ();
@@ -84,6 +91,12 @@ public:
     bool skipEnabled                        ();
 
     QList<qreal> stickPositions             () { return _currentStickPositions; }
+    QStringList rcChannelOptions            () const { return _rcChannelOptions; }
+    QVariantList axisChannelSelection       () const;
+    QVariantList buttonChannelSelection     () const;
+
+    Q_INVOKABLE void setAxisChannel         (int axis, int optionIndex);
+    Q_INVOKABLE void setButtonChannel       (int button, int optionIndex);
 
     struct stateStickPositions {
         qreal   leftX;
@@ -110,6 +123,9 @@ signals:
     void skipEnabledChanged                 ();
     void stickPositionsChanged              ();
     void statusTextChanged                  ();
+    void rcChannelOptionsChanged            ();
+    void axisChannelSelectionChanged        ();
+    void buttonChannelSelectionChanged      ();
 
     // @brief Signalled when in unit test mode and a message box should be displayed by the next button
     void nextButtonMessageBoxDisplayed      ();
@@ -118,6 +134,7 @@ private slots:
     void _activeJoystickChanged(Joystick* joystick);
     void _axisValueChanged(int axis, int value);
     void _axisDeadbandChanged(int axis, int value);
+    void _vehicleRCChannelsChanged(int channelCount, int pwmValues[QGCMAVLink::maxRcChannels]);
 
 private:
     /// @brief The states of the calibration state machine.
@@ -155,6 +172,10 @@ private:
     };
 
     Joystick* _activeJoystick = nullptr;
+
+    QStringList _rcChannelOptions;
+    QVector<int> _axisChannelSelection;
+    QVector<int> _buttonChannelSelection;
 
     int _transmitterMode    = 2;
     int _currentStep        = -1;  ///< Current step of state machine
@@ -282,4 +303,3 @@ private:
     };
 
 };
-

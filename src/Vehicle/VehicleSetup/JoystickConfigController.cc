@@ -15,11 +15,17 @@
 #include "Vehicle.h"
 #include "QGCLoggingCategory.h"
 
+#include <algorithm>
+
 QGC_LOGGING_CATEGORY(JoystickConfigControllerLog, "JoystickConfigControllerLog")
 
 JoystickConfigController::JoystickConfigController(void)
 {
-    
+    _rcChannelOptions.append(tr("None"));
+    if (_vehicle) {
+        connect(_vehicle, &Vehicle::rcChannelsChanged, this, &JoystickConfigController::_vehicleRCChannelsChanged);
+    }
+
     connect(JoystickManager::instance(), &JoystickManager::activeJoystickChanged, this, &JoystickConfigController::_activeJoystickChanged);
     _activeJoystickChanged(JoystickManager::instance()->activeJoystick());
     _setStickPositions();
@@ -39,6 +45,54 @@ void JoystickConfigController::setDeadbandValue(int axis, int value)
     Joystick::Calibration_t calibration = joystick->getCalibration(axis);
     calibration.deadband = value;
     joystick->setCalibration(axis,calibration);
+}
+
+QVariantList JoystickConfigController::axisChannelSelection() const
+{
+    QVariantList list;
+    list.reserve(_axisChannelSelection.size());
+    for (int value : _axisChannelSelection) {
+        list.append(value);
+    }
+    return list;
+}
+
+QVariantList JoystickConfigController::buttonChannelSelection() const
+{
+    QVariantList list;
+    list.reserve(_buttonChannelSelection.size());
+    for (int value : _buttonChannelSelection) {
+        list.append(value);
+    }
+    return list;
+}
+
+void JoystickConfigController::setAxisChannel(int axis, int optionIndex)
+{
+    if (axis < 0 || axis >= _axisChannelSelection.size() || _rcChannelOptions.isEmpty()) {
+        return;
+    }
+
+    const int optionCount = static_cast<int>(_rcChannelOptions.size());
+    const int boundedIndex = std::clamp(optionIndex, 0, optionCount - 1);
+    if (_axisChannelSelection[axis] != boundedIndex) {
+        _axisChannelSelection[axis] = boundedIndex;
+        emit axisChannelSelectionChanged();
+    }
+}
+
+void JoystickConfigController::setButtonChannel(int button, int optionIndex)
+{
+    if (button < 0 || button >= _buttonChannelSelection.size() || _rcChannelOptions.isEmpty()) {
+        return;
+    }
+
+    const int optionCount = static_cast<int>(_rcChannelOptions.size());
+    const int boundedIndex = std::clamp(optionIndex, 0, optionCount - 1);
+    if (_buttonChannelSelection[button] != boundedIndex) {
+        _buttonChannelSelection[button] = boundedIndex;
+        emit buttonChannelSelectionChanged();
+    }
 }
 
 JoystickConfigController::~JoystickConfigController()
@@ -652,6 +706,10 @@ void JoystickConfigController::_activeJoystickChanged(Joystick* joystick)
         delete[] _axisRawValue;
         _axisCount = 0;
         _activeJoystick = nullptr;
+        _axisChannelSelection.clear();
+        emit axisChannelSelectionChanged();
+        _buttonChannelSelection.clear();
+        emit buttonChannelSelectionChanged();
     }
     
     if (joystick) {
@@ -666,6 +724,55 @@ void JoystickConfigController::_activeJoystickChanged(Joystick* joystick)
         _axisRawValue   = new int[_axisCount];
         _setInternalCalibrationValuesFromSettings();
         connect(_activeJoystick, &Joystick::rawAxisValueChanged, this, &JoystickConfigController::_axisValueChanged);
+
+        _axisChannelSelection = QVector<int>(_axisCount, 0);
+        emit axisChannelSelectionChanged();
+
+        const int buttonCount = _activeJoystick->totalButtonCount();
+        _buttonChannelSelection = QVector<int>(buttonCount, 0);
+        emit buttonChannelSelectionChanged();
+    }
+}
+
+void JoystickConfigController::_vehicleRCChannelsChanged(int channelCount, int pwmValues[QGCMAVLink::maxRcChannels])
+{
+    Q_UNUSED(pwmValues);
+
+    QStringList options;
+    options.append(tr("None"));
+    for (int channel = 0; channel < channelCount; ++channel) {
+        options.append(tr("Channel %1").arg(channel + 1));
+    }
+
+    if (options == _rcChannelOptions) {
+        return;
+    }
+
+    _rcChannelOptions = options;
+    emit rcChannelOptionsChanged();
+
+    const int maxIndex = _rcChannelOptions.isEmpty() ? -1 : static_cast<int>(_rcChannelOptions.size()) - 1;
+
+    bool axisChanged = false;
+    for (int& value : _axisChannelSelection) {
+        if (value > maxIndex) {
+            value = 0;
+            axisChanged = true;
+        }
+    }
+    if (axisChanged) {
+        emit axisChannelSelectionChanged();
+    }
+
+    bool buttonChanged = false;
+    for (int& value : _buttonChannelSelection) {
+        if (value > maxIndex) {
+            value = 0;
+            buttonChanged = true;
+        }
+    }
+    if (buttonChanged) {
+        emit buttonChannelSelectionChanged();
     }
 }
 
