@@ -16,12 +16,15 @@
 #include "QGCLoggingCategory.h"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 QGC_LOGGING_CATEGORY(JoystickConfigControllerLog, "JoystickConfigControllerLog")
 
 JoystickConfigController::JoystickConfigController(void)
 {
-    _rcChannelOptions.append(tr("None"));
+    _rcChannelOptions.append(tr("Not Mapped"));
+    _rcOverrideValues = QVector<uint16_t>(QGCMAVLink::maxRcChannels, std::numeric_limits<uint16_t>::max());
     if (_vehicle) {
         connect(_vehicle, &Vehicle::rcChannelsChanged, this, &JoystickConfigController::_vehicleRCChannelsChanged);
     }
@@ -78,6 +81,7 @@ void JoystickConfigController::setAxisChannel(int axis, int optionIndex)
     if (_axisChannelSelection[axis] != boundedIndex) {
         _axisChannelSelection[axis] = boundedIndex;
         emit axisChannelSelectionChanged();
+        _rebuildOverrides();
     }
 }
 
@@ -92,6 +96,7 @@ void JoystickConfigController::setButtonChannel(int button, int optionIndex)
     if (_buttonChannelSelection[button] != boundedIndex) {
         _buttonChannelSelection[button] = boundedIndex;
         emit buttonChannelSelectionChanged();
+        _rebuildOverrides();
     }
 }
 
@@ -194,6 +199,8 @@ void JoystickConfigController::_axisValueChanged(int axis, int value)
                 (this->*state->rcInputFn)(state->function, axis, value);
             }
         }
+
+        _rebuildOverrides();
     }
 }
 
@@ -699,6 +706,7 @@ void JoystickConfigController::_activeJoystickChanged(Joystick* joystick)
     if (_activeJoystick) {
         joystickTransition = true;
         disconnect(_activeJoystick, &Joystick::rawAxisValueChanged, this, &JoystickConfigController::_axisValueChanged);
+        disconnect(_activeJoystick, &Joystick::rawButtonPressedChanged, this, &JoystickConfigController::_buttonPressedChanged);
         // This will reset _rgFunctionAxis values to -1 to prevent out-of-bounds accesses
         _resetInternalCalibrationValues();
         delete[] _rgAxisInfo;
@@ -710,6 +718,7 @@ void JoystickConfigController::_activeJoystickChanged(Joystick* joystick)
         emit axisChannelSelectionChanged();
         _buttonChannelSelection.clear();
         emit buttonChannelSelectionChanged();
+        _buttonPressedValues.clear();
     }
     
     if (joystick) {
@@ -722,8 +731,11 @@ void JoystickConfigController::_activeJoystickChanged(Joystick* joystick)
         _rgAxisInfo     = new struct AxisInfo[_axisCount];
         _axisValueSave  = new int[_axisCount];
         _axisRawValue   = new int[_axisCount];
+        std::fill_n(_axisValueSave, _axisCount, 0);
+        std::fill_n(_axisRawValue, _axisCount, 0);
         _setInternalCalibrationValuesFromSettings();
         connect(_activeJoystick, &Joystick::rawAxisValueChanged, this, &JoystickConfigController::_axisValueChanged);
+        connect(_activeJoystick, &Joystick::rawButtonPressedChanged, this, &JoystickConfigController::_buttonPressedChanged);
 
         _axisChannelSelection = QVector<int>(_axisCount, 0);
         emit axisChannelSelectionChanged();
@@ -731,7 +743,10 @@ void JoystickConfigController::_activeJoystickChanged(Joystick* joystick)
         const int buttonCount = _activeJoystick->totalButtonCount();
         _buttonChannelSelection = QVector<int>(buttonCount, 0);
         emit buttonChannelSelectionChanged();
+        _buttonPressedValues = QVector<int>(buttonCount, 0);
     }
+
+    _rebuildOverrides();
 }
 
 void JoystickConfigController::_vehicleRCChannelsChanged(int channelCount, int pwmValues[QGCMAVLink::maxRcChannels])
@@ -739,8 +754,9 @@ void JoystickConfigController::_vehicleRCChannelsChanged(int channelCount, int p
     Q_UNUSED(pwmValues);
 
     QStringList options;
-    options.append(tr("None"));
-    for (int channel = 0; channel < channelCount; ++channel) {
+    options.append(tr("Not Mapped"));
+    const int availableChannels = std::min(channelCount, QGCMAVLink::maxRcChannels);
+    for (int channel = 0; channel < availableChannels; ++channel) {
         options.append(tr("Channel %1").arg(channel + 1));
     }
 
@@ -774,6 +790,83 @@ void JoystickConfigController::_vehicleRCChannelsChanged(int channelCount, int p
     if (buttonChanged) {
         emit buttonChannelSelectionChanged();
     }
+
+    _rebuildOverrides();
+}
+
+void JoystickConfigController::_buttonPressedChanged(int button, int pressed)
+{
+    if (button < 0 || button >= _buttonPressedValues.size()) {
+        return;
+    }
+
+    const int normalized = pressed ? 1 : 0;
+    if (_buttonPressedValues[button] != normalized) {
+        _buttonPressedValues[button] = normalized;
+        _rebuildOverrides();
+    }
+}
+
+uint16_t JoystickConfigController::_axisRawToPwm(int raw) const
+{
+    const int clamped = std::clamp(raw, _calValidMinValue, _calValidMaxValue);
+    const double normalized = (static_cast<double>(clamped) - _calValidMinValue) / (_calValidMaxValue - _calValidMinValue);
+    return static_cast<uint16_t>(std::round(1000.0 + normalized * 1000.0));
+}
+
+void JoystickConfigController::_rebuildOverrides()
+{
+    QVector<uint16_t> newValues(QGCMAVLink::maxRcChannels, std::numeric_limits<uint16_t>::max());
+
+    if (_axisRawValue && !_axisChannelSelection.isEmpty()) {
+        const int axisSelectionCount = _axisChannelSelection.size();
+        for (int axis = 0; axis < axisSelectionCount; ++axis) {
+            const int selection = _axisChannelSelection[axis];
+            if (selection <= 0) {
+                continue;
+            }
+            const int channelIndex = selection - 1;
+            if (channelIndex < 0 || channelIndex >= newValues.size()) {
+                continue;
+            }
+            newValues[channelIndex] = _axisRawToPwm(_axisRawValue[axis]);
+        }
+    }
+
+    const int buttonSelectionCount = _buttonChannelSelection.size();
+    for (int button = 0; button < buttonSelectionCount; ++button) {
+        const int selection = _buttonChannelSelection[button];
+        if (selection <= 0) {
+            continue;
+        }
+        const int channelIndex = selection - 1;
+        if (channelIndex < 0 || channelIndex >= newValues.size()) {
+            continue;
+        }
+        const bool pressed = (button < _buttonPressedValues.size()) && (_buttonPressedValues[button] != 0);
+        newValues[channelIndex] = static_cast<uint16_t>(pressed ? 2000 : 1000);
+    }
+
+    if (newValues == _rcOverrideValues) {
+        return;
+    }
+
+    _rcOverrideValues = newValues;
+    _sendRcOverride();
+}
+
+void JoystickConfigController::_sendRcOverride() const
+{
+    if (!_vehicle) {
+        return;
+    }
+
+    uint16_t channelValues[QGCMAVLink::maxRcChannels];
+    for (int i = 0; i < QGCMAVLink::maxRcChannels; ++i) {
+        channelValues[i] = (i < _rcOverrideValues.size()) ? _rcOverrideValues[i] : std::numeric_limits<uint16_t>::max();
+    }
+
+    _vehicle->sendRcChannelsOverride(channelValues);
 }
 
 bool JoystickConfigController::_validAxis(int axis) const

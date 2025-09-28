@@ -18,6 +18,7 @@
 #include <QtCore/QStringList>
 #include <QtCore/QVariantList>
 #include <QtCore/QVector>
+#include <cstdint>
 #include <QtQmlIntegration/QtQmlIntegration>
 
 #include "FactPanelController.h"
@@ -134,6 +135,7 @@ private slots:
     void _activeJoystickChanged(Joystick* joystick);
     void _axisValueChanged(int axis, int value);
     void _axisDeadbandChanged(int axis, int value);
+    void _buttonPressedChanged(int button, int pressed);
     void _vehicleRCChannelsChanged(int channelCount, int pwmValues[QGCMAVLink::maxRcChannels]);
 
 private:
@@ -176,6 +178,8 @@ private:
     QStringList _rcChannelOptions;
     QVector<int> _axisChannelSelection;
     QVector<int> _buttonChannelSelection;
+    QVector<int> _buttonPressedValues;
+    QVector<uint16_t> _rcOverrideValues;
 
     int _transmitterMode    = 2;
     int _currentStep        = -1;  ///< Current step of state machine
@@ -215,6 +219,9 @@ private:
     void _signalAllAttitudeValueChanges();
 
     void _setStatusText         (const QString& text);
+    uint16_t _axisRawToPwm(int raw) const;
+    void _rebuildOverrides();
+    void _sendRcOverride() const;
 
     stateStickPositions _sticksCentered;
     stateStickPositions _sticksThrottleUp;

@@ -446,6 +446,7 @@ public:
     bool joystickEnabled            () const;
     void setJoystickEnabled         (bool enabled);
     void sendJoystickDataThreadSafe (float roll, float pitch, float yaw, float thrust, quint16 buttons, quint16 buttons2);
+    void sendRcChannelsOverride     (const uint16_t channelValues[QGCMAVLink::maxRcChannels]);
 
     // Property accesors
     int id() const{ return _id; }

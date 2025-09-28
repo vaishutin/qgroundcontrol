@@ -3901,6 +3901,35 @@ void Vehicle::sendJoystickDataThreadSafe(float roll, float pitch, float yaw, flo
     sendMessageOnLinkThreadSafe(sharedLink.get(), message);
 }
 
+void Vehicle::sendRcChannelsOverride(const uint16_t channelValues[QGCMAVLink::maxRcChannels])
+{
+    SharedLinkInterfacePtr sharedLink = vehicleLinkManager()->primaryLink().lock();
+    if (!sharedLink) {
+        qCDebug(VehicleLog) << "sendRcChannelsOverride: primary link gone!";
+        return;
+    }
+
+    if (sharedLink->linkConfiguration()->isHighLatency()) {
+        return;
+    }
+
+    mavlink_message_t message;
+    mavlink_msg_rc_channels_override_pack_chan(
+        static_cast<uint8_t>(MAVLinkProtocol::instance()->getSystemId()),
+        static_cast<uint8_t>(MAVLinkProtocol::getComponentId()),
+        sharedLink->mavlinkChannel(),
+        &message,
+        static_cast<uint8_t>(_id),
+        MAV_COMP_ID_AUTOPILOT1,
+        channelValues[0], channelValues[1], channelValues[2], channelValues[3],
+        channelValues[4], channelValues[5], channelValues[6], channelValues[7],
+        channelValues[8], channelValues[9], channelValues[10], channelValues[11],
+        channelValues[12], channelValues[13], channelValues[14], channelValues[15],
+        channelValues[16], channelValues[17]
+    );
+    sendMessageOnLinkThreadSafe(sharedLink.get(), message);
+}
+
 void Vehicle::triggerSimpleCamera()
 {
     sendMavCommand(_defaultComponentId,
