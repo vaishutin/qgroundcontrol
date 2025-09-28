@@ -755,7 +755,7 @@ void JoystickConfigController::_vehicleRCChannelsChanged(int channelCount, int p
 
     QStringList options;
     options.append(tr("Not Mapped"));
-    const int availableChannels = std::min(channelCount, QGCMAVLink::maxRcChannels);
+    const int availableChannels = std::min(channelCount, static_cast<int>(QGCMAVLink::maxRcChannels));
     for (int channel = 0; channel < availableChannels; ++channel) {
         options.append(tr("Channel %1").arg(channel + 1));
     }
